@@ -5,53 +5,53 @@ import os
 HOST = 'localhost'
 PORT = 12345
 
-klienci = []
+clients = []
 
 mutex = threading.Lock()
 
-def obsluga_klienta(gniazdo_klienta):
+def client_handler(client_socket):
     with mutex:
-        klienci.append(gniazdo_klienta)
+        clients.append(client_socket)
     while True:
         try:
-            dane = gniazdo_klienta.recv(1024)
-            if not dane:
+            data = client_socket.recv(1024)
+            if not data:
                 break
-            if dane.decode() == "SEND_FILE":
-                nazwa_pliku = gniazdo_klienta.recv(1024).decode()
-                rozmiar_pliku = int(gniazdo_klienta.recv(1024).decode())
-                with open(nazwa_pliku, 'wb') as plik:
-                    odebrane_dane = 0
-                    while odebrane_dane < rozmiar_pliku:
-                        fragment = gniazdo_klienta.recv(1024)
-                        plik.write(fragment)
-                        odebrane_dane += len(fragment)
-                print(f"Odebrano plik: {nazwa_pliku}")
+            if data.decode() == "SEND_FILE":
+                file_name = client_socket.recv(1024).decode()
+                file_size = int(client_socket.recv(1024).decode())
+                with open(file_name, 'wb') as file:
+                    received_data = 0
+                    while received_data < file_size:
+                        fragment = client_socket.recv(1024)
+                        file.write(fragment)
+                        received_data += len(fragment)
+                print(f"Received file: {file_name}")
             else:
                 with mutex:
-                    for inny_klient in klienci:
-                        if inny_klient != gniazdo_klienta:
-                            inny_klient.send(dane)
+                    for other_client in clients:
+                        if other_client != client_socket:
+                            other_client.send(data)
         except Exception as e:
-            print(f"Błąd: {e}")
+            print(f"Error: {e}")
             break
     with mutex:
-        klienci.remove(gniazdo_klienta)
-    gniazdo_klienta.close()
+        clients.remove(client_socket)
+    client_socket.close()
 
-gniazdo_serwera = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-gniazdo_serwera.bind((HOST, PORT))
-gniazdo_serwera.listen(5)
-print(f"Serwer nasłuchuje na {HOST}:{PORT}")
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server_socket.bind((HOST, PORT))
+server_socket.listen(5)
+print(f"Server is listening on {HOST}:{PORT}")
 
 try:
     while True:
-        gniazdo_klienta, adres = gniazdo_serwera.accept()
-        print(f"Nowe połączenie od {adres}")
-        watek_klienta = threading.Thread(target=obsluga_klienta, args=(gniazdo_klienta,))
-        watek_klienta.start()
+        client_socket, address = server_socket.accept()
+        print(f"New connection from {address}")
+        client_thread = threading.Thread(target=client_handler, args=(client_socket,))
+        client_thread.start()
 except KeyboardInterrupt:
-    print("Zamykanie serwera...")
-    gniazdo_serwera.close()
-    for klient in klienci:
-        klient.close()
+    print("Closing the server...")
+    server_socket.close()
+    for client in clients:
+        client.close()
