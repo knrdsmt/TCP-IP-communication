@@ -4,26 +4,27 @@ import threading
 HOST = 'localhost'
 PORT = 12345
 
-gniazdo_klienta = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-gniazdo_klienta.connect((HOST, PORT))
+client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client_socket.connect((HOST, PORT))
 
-def odbieranie_wiadomosci():
+def receive_message():
     while True:
         try:
-            wiadomosc = gniazdo_klienta.recv(1024).decode()
-            if wiadomosc:
-                print("\nOtrzymana wiadomość: ", wiadomosc)
+            message = client_socket.recv(1024).decode()
+            if message:
+                print("\nReceived message: ", message)
             else:
                 break
         except:
             break
 
-threading.Thread(target=odbieranie_wiadomosci).start()
+threading.Thread(target=receive_message).start()
 
 try:
     while True:
-        wiadomosc = input("Wprowadź wiadomość: ")
-        gniazdo_klienta.send(wiadomosc.encode())
+        message = input("Enter message: ")
+        client_socket.send(message.encode())
 except KeyboardInterrupt:
-    print("Zamykanie klienta...")
-    gniazdo_klienta.close()
+    print("Closing the client...")
+    client_socket.close()
+    
